@@ -9,10 +9,10 @@ import json, time
 last_ckpt_path_lock = threading.Lock()  # Ensure thread-safe updates of last_ckpt_path
 last_ckpt_path = None
 
-
 app = Flask(__name__)  # Initialize Flask application
 CORS(app)  # Use the CORS decorator to enable cross-origin resource sharing for all routes
 executor = ThreadPoolExecutor(max_workers=1)  # Make sure only one request is processed at a time
+
 
 # Define the root route, used to serve static files (such as front-end pages)
 @app.route('/')
@@ -20,9 +20,11 @@ def index():
     # Use the send_from_directory function to send the 'base.html' file from the 'templates' directory
     return send_from_directory('templates', 'base.html')
 
+
 GUI_progress = [100]  # Global variables are used to track progress bar
 
 pipe = None
+
 
 @app.route('/GUI_progress')
 def progress_updates():
@@ -34,13 +36,14 @@ def progress_updates():
             yield f"data:{json_data}\n\n"
             time.sleep(0.1)
         yield "data:{\"GUI_progress\": 100}\n\n"
+
     GUI_progress[0] = 0
     return Response(generate(), mimetype='text/event-stream')
 
 
 def process_request(req_data):
     data = req_data['prompt']
-    
+
     InstanceNum = data['InstanceNum']
     width = data['width']
     height = data['height']
@@ -54,7 +57,7 @@ def process_request(req_data):
     for i in range(1, InstanceNum + 1):
         InstanceData = data[f'Instance{i}']['inputs']
         prompt_final[0].append(InstanceData['text'])
-        prompt_final[0][0]  += ',' + InstanceData['text']
+        prompt_final[0][0] += ',' + InstanceData['text']
         l = InstanceData['x'] / width
         u = InstanceData['y'] / height
         r = l + InstanceData['width'] / width
@@ -72,8 +75,8 @@ def process_request(req_data):
         GUI_progress[0] = 100
         return "ckpt_warning"
     sd_safetensors_path = os.path.join(project_dir, 'migc_gui_weights/sd',
-                                    sd_safetensors_name)
-    
+                                       sd_safetensors_name)
+
     with last_ckpt_path_lock:
         global last_ckpt_path
         if last_ckpt_path is None or last_ckpt_path != sd_safetensors_path:
@@ -88,11 +91,11 @@ def process_request(req_data):
     print(prompt_final)
     print(bboxes)
     print('Generating Image..')
-    image = pipe(prompt_final, bboxes, 
-                num_inference_steps=num_inference_steps, guidance_scale=cfg,
-                width=width, height=height, MIGCsteps=MIGCsteps, NaiveFuserSteps=NaiveFuserSteps,
-                ca_scale=ca_scale, ea_scale=ea_scale,
-                sac_scale=sac_scale, negative_prompt=negative_prompt, GUI_progress=GUI_progress).images[0]
+    image = pipe(prompt_final, bboxes,
+                 num_inference_steps=num_inference_steps, guidance_scale=cfg,
+                 width=width, height=height, MIGCsteps=MIGCsteps, NaiveFuserSteps=NaiveFuserSteps,
+                 ca_scale=ca_scale, ea_scale=ea_scale,
+                 sac_scale=sac_scale, negative_prompt=negative_prompt, GUI_progress=GUI_progress).images[0]
     app_file_path = __file__
     app_folder = os.path.dirname(app_file_path)
     output_folder = os.path.join(app_folder, 'output_images')
@@ -121,6 +124,7 @@ def get_sd_ckpts():
 
 if __name__ == '__main__':
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=3344)
     args = parser.parse_args()
